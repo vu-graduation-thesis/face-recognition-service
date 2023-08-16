@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .circle {
+      border: 10px solid;
+      border-radius: 50%;
+      height: 400px;
+      width: 300px;
+      background-color: white;
+      margin: 0 auto;
+      position: relative;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    #video {
+      width: 300px;
+      height: 400px;
+      border-radius: 50%;
+    }
+
+    .none {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapperKyc">
+    <div class="circle">
+      <video src="" id="video" autoplay class="none"></video>
+      <lottie-player src="https://lottie.host/e5c9c271-e1c7-45fb-bf0d-0a75bca4faea/le4sbwX1Fa.json"
+        background="transparent" speed="1" style="width: 90%; height: 90%; margin: 0 auto;" loop autoplay direction="1"
+        mode="normal">
+      </lottie-player>
+    </div>
+  </div>
+  <canvas id="canvas" class="none"></canvas>
+  <button onclick="turnOnCamera()">Bắt đầu nhận diện khuôn mặt</button>
+  <button onclick="capture()">Chụp ảnh</button>
+  <img src="" id="img" alt="">
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+  <script>
+    function turnOnCamera() {
+      navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { width: 300, height: 400 },
+      }).then(stream => {
+        const video = document.getElementById('video')
+        video.srcObject = stream
+        video.classList.remove('none')
+      })
+    }
+
+    function capture() {
+      const canvas = document.getElementById('canvas');
+      const video = document.getElementById('video');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const capturedImage = canvas.toDataURL('image/png');
+      const byteCharacters = atob(capturedImage.split(',')[1]);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/png' });
+      const fileSize = blob.size;
+      console.log('Kích thước tệp ảnh:', fileSize / 1000, 'bytes');
+
+      document.getElementById("img").src = capturedImage
+    }
+  </script>
+
+</body>
+
+</html>
