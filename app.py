@@ -17,10 +17,28 @@ if not os.path.isfile(config["trained_model"]):
 print(f"Loading trained model from {config['trained_model']}...")
 globalVariable.recognizer.read(config["trained_model"])
 
+os.makedirs("uploads", exist_ok=True)
+
 
 @app.route('/')
 def index():
     return 'Hello world'
+
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'file' not in request.files:
+        return 'No file uploaded', 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return 'No file selected', 400
+
+    if file:
+        filename = file.filename
+        file.save(os.path.join('uploads', filename))
+        return 'File saved successfully', 200
 
 
 @app.route('/detect-face', methods=['POST'])
