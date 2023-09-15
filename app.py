@@ -7,6 +7,9 @@ import globalVariable
 import os
 from config import config
 import training
+from PIL import Image
+from io import BytesIO
+import base64
 
 app = Flask(__name__)
 
@@ -27,13 +30,18 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
+    if 'type' in request.form and request.form['type'] == 'base64':
+        image_data = request.form['image']
+        image_data = image_data.split(",")[1]
+        img = Image.open(BytesIO(base64.b64decode(image_data)))
+        img = img.convert('RGB')
+        img.save(os.path.join('uploads', 'image.jpg'))
+        return 'File base64 saved successfully', 200
+
     if 'file' not in request.files:
         return 'No file uploaded', 400
 
     file = request.files['file']
-
-    if file.filename == '':
-        return 'No file selected', 400
 
     if file:
         filename = file.filename
