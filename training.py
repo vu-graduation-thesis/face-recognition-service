@@ -10,10 +10,10 @@ import globalVariable
 def raw_data_processing(trained_student_id=None):
     if trained_student_id is None:
         print(
-            f"Completed preprocessing the raw data for all students")
+            f"Start preprocessing the raw data for all students")
     else:
         print(
-            f"Completed preprocessing the raw data for student_id: {trained_student_id}")
+            f"Start preprocessing the raw data for student_id: {trained_student_id}")
 
     raw_folder_data = config['raw_folder_data']
     training_folder_data = config['training_folder_data']
@@ -56,10 +56,10 @@ def raw_data_processing(trained_student_id=None):
 def start_training_model(student_id=None):
     if student_id is None:
         print(
-            f"Completed preprocessing the raw data for all students")
+            f"Start training the model for all students")
     else:
         print(
-            f"Completed preprocessing the raw data for student_id: {student_id}")
+            f"Start retraining the model data when there are new student - student_id: {student_id}")
     aws.getResourceFromS3(student_id="" if student_id is None else student_id)
     raw_data_processing(student_id)
 
@@ -81,10 +81,10 @@ def start_training_model(student_id=None):
     recognizer.save(config["trained_model"])
     if student_id is None:
         print(
-            f"Completed preprocessing the raw data for all students")
+            f"Completed training the model for all students")
     else:
         print(
-            f"Completed preprocessing the raw data for student_id: {student_id}")
+            f"Completed retraining the model data when there are new student - student_id: {student_id}")
 
     lock = threading.Lock()
     lock.acquire()
