@@ -11,7 +11,12 @@ from PIL import Image
 from io import BytesIO
 import base64
 
+from flask_cors import CORS, cross_origin
 app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
+
 
 if not os.path.isfile(config["trained_model"]):
     print(f"File {config['trained_model']} is missing. Start training model.")
@@ -37,7 +42,7 @@ def upload():
         img = img.convert('RGB')
         img.save(os.path.join('uploads', 'image.jpg'))
         return 'File base64 saved successfully', 200
-
+    print(request.files)
     if 'file' not in request.files:
         return 'No file uploaded', 400
 
@@ -50,11 +55,13 @@ def upload():
 
 
 @app.route('/detect-face', methods=['POST'])
+@cross_origin()
 def detect_face():
 
     file = request.files['image']
     image = cv2.imdecode(np.frombuffer(
         file.read(), np.uint8), cv2.IMREAD_COLOR)
+    cv2.imwrite("uploads/image.jpg", image)
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     faces = globalVariable.face_cascade.detectMultiScale(
@@ -72,7 +79,7 @@ def detect_face():
 
         label, confidence = local_recognizer.predict(face_resized)
         print("label", label, confidence)
-        if confidence < 100:
+        if confidence < 120:
             recognized_students.append({
                 "label": label,
                 "confidence": confidence,

@@ -7,3 +7,4 @@ redis==5.0.0
 python-decouple==3.4
 opencv-contrib-python==4.8.0.76
 Pillow==8.3.2
+flask-cors==4.0.0
