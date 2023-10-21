@@ -1,31 +1,35 @@
 from flask import Flask, request, jsonify
-import cv2
-import numpy as np
-import listener_queue
-from threading import Thread, Lock
-import globalVariable
 import os
 from config import config
-import training
-from PIL import Image
-from io import BytesIO
-import base64
+from flask_pymongo import PyMongo
+import aws
+import cv2
+import face_recognition
+import numpy
 
 from flask_cors import CORS, cross_origin
 app = Flask(__name__)
+app.config["MONGO_URI"] = config["mongodb"]
 cors = CORS(app)
-app.config['CORS_HEADERS'] = 'Content-Type'
+os.makedirs(config["download_folder"], exist_ok=True)
+
+mongo = PyMongo(app)
+
+known_face_descriptors = []
+known_face_labels = []
 
 
+def init():
+    global known_face_descriptors
+    global known_face_labels
 
-if not os.path.isfile(config["trained_model"]):
-    print(f"File {config['trained_model']} is missing. Start training model.")
-    training.start_training_model()
+    for data in mongo.db.faceDescriptors.find():
+        descriptor = numpy.array(data["descriptor"])
+        known_face_descriptors.append(descriptor)
+        known_face_labels.append(data["label"])
 
-print(f"Loading trained model from {config['trained_model']}...")
-globalVariable.recognizer.read(config["trained_model"])
 
-os.makedirs("uploads", exist_ok=True)
+init()
 
 
 @app.route('/')
@@ -33,69 +37,93 @@ def index():
     return 'Hello world'
 
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    if 'type' in request.form and request.form['type'] == 'base64':
-        image_data = request.form['image']
-        image_data = image_data.split(",")[1]
-        img = Image.open(BytesIO(base64.b64decode(image_data)))
-        img = img.convert('RGB')
-        img.save(os.path.join('uploads', 'image.jpg'))
-        return 'File base64 saved successfully', 200
-    print(request.files)
-    if 'file' not in request.files:
-        return 'No file uploaded', 400
+@app.route('/api/training/<label>', methods=['POST'])
+def training_data(label):
+    global known_face_descriptors
+    global known_face_labels
+    body = request.json
 
-    file = request.files['file']
+    paths = aws.download_folder_from_s3(
+        body["bucket"], body["folder_path"])
 
-    if file:
-        filename = file.filename
-        file.save(os.path.join('uploads', filename))
-        return 'File saved successfully', 200
+    result = []
 
+    for path in paths:
+        try:
+            image = cv2.imread(path)
 
-@app.route('/detect-face', methods=['POST'])
-@cross_origin()
-def detect_face():
+            face_locations = face_recognition.face_locations(image)
+            face_encoding = face_recognition.face_encodings(
+                image, face_locations)[0]
 
-    file = request.files['image']
-    image = cv2.imdecode(np.frombuffer(
-        file.read(), np.uint8), cv2.IMREAD_COLOR)
-    cv2.imwrite("uploads/image.jpg", image)
-
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    faces = globalVariable.face_cascade.detectMultiScale(
-        gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-
-    lock = Lock()
-    lock.acquire()
-    local_recognizer = globalVariable.recognizer
-    lock.release()
-
-    recognized_students = []
-    for (x, y, w, h) in faces:
-        face = gray[y:y+h, x:x+w]
-        face_resized = cv2.resize(face, (100, 100))
-
-        label, confidence = local_recognizer.predict(face_resized)
-        print("label", label, confidence)
-        if confidence < 120:
-            recognized_students.append({
+            mongo.db.faceDescriptors.insert_one({
                 "label": label,
-                "confidence": confidence,
-                "position": {
-                    "x": int(x),
-                    "y": int(y),
-                    "w": int(w),
-                    "h": int(h)
-                }
+                "descriptor": face_encoding.tolist()
             })
+            result.append({
+                "label": label,
+                "path": path
+            })
+            known_face_descriptors.append(face_encoding)
+            known_face_labels.append(label)
+        except Exception as e:
+            print("Error training data: ", e)
 
-    return jsonify({'result': 'success', 'num_faces': recognized_students})
+    return jsonify({
+        "message": "Training data success",
+        "data": result
+    })
+
+
+@app.route('/api/recognize', methods=['POST'])
+def recognize():
+    body = request.json
+    global known_face_descriptors
+    global known_face_labels
+    file_path = body["file"]
+    type = body["type"]
+    bucket = body["bucket"]
+    local_file_path = aws.download_file_from_s3(bucket, file_path)
+    if local_file_path is None:
+        return jsonify({
+            "message": "Error downloading image from S3"
+        }), 500
+
+    result = []
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    if type == "image":
+        frame = cv2.imread(local_file_path)
+        face_locations = face_recognition.face_locations(frame)
+        face_encodings = face_recognition.face_encodings(
+            frame, face_locations)
+        for index, face_encoding in enumerate(face_encodings):
+            top, right, bottom, left = face_locations[index]
+
+            face_distances = face_recognition.face_distance(
+                known_face_descriptors, face_encoding)
+            min_distance = min(face_distances)
+            if min_distance < 0.5:
+                index = face_distances.tolist().index(min_distance)
+                label = known_face_labels[index]
+                print(label)
+                result.append({
+                    "label": label,
+                    "confidence": 1 - min_distance
+                })
+                cv2.rectangle(frame, (left, top),
+                              (right, bottom), (124, 252, 0), 2)
+                cv2.putText(frame, label, (left + 6, bottom - 12),
+                            font, min(right - left, 35)/(55), (124, 252, 0), 1)
+            else:
+                cv2.rectangle(frame, (left, top),
+                              (right, bottom), (0, 0, 255), 2)
+                cv2.putText(frame, "Unknown", (left + 6, bottom - 12),
+                            font, min(right - left, 35)/(55), (0, 0, 255), 1)
+
+    cv2.imwrite(local_file_path, frame)
+    return result
 
 
 if __name__ == '__main__':
-    redis_thread = Thread(target=listener_queue.message_listener)
-    redis_thread.start()
     app.run(host='0.0.0.0', debug=False, port=config["port"])
-    redis_thread.join()

@@ -13,7 +13,10 @@ config = {
     },
     "raw_folder_data": "raw-data",
     "bucket_name": "face-recognition-service",
+    "attendance_bucket_name": "attendance-resource",
     "training_folder_data": "training-data",
     "training_data_queue": env_config("TRAINING_DATA_QUEUE"),
     "trained_model": "trained_model.yml",
+    "mongodb": env_config("MONGO_URL"),
+    "download_folder": "download",
 }
