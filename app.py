@@ -42,16 +42,14 @@ def index():
 def training_data(label):
     global known_face_descriptors
     global known_face_labels
-    body = request.json
 
-    paths = aws.download_folder_from_s3(
-        body["bucket"], body["folder_path"])
-
+    files = request.files.getlist('files')
     result = []
 
-    for path in paths:
+    for file in files:
         try:
-            image = cv2.imread(path)
+            image = cv2.imdecode(numpy.frombuffer(
+                file.read(), numpy.uint8), cv2.IMREAD_COLOR)
 
             face_locations = face_recognition.face_locations(image)
             face_encoding = face_recognition.face_encodings(
@@ -63,7 +61,7 @@ def training_data(label):
             })
             result.append({
                 "label": label,
-                "path": path
+                "path": file.filename
             })
             known_face_descriptors.append(face_encoding)
             known_face_labels.append(label)
