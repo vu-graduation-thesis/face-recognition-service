@@ -19,4 +19,5 @@ config = {
     "trained_model": "trained_model.yml",
     "mongodb": env_config("MONGO_URL"),
     "download_folder": "download",
+    "output_folder": "output",
 }
