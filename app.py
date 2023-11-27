@@ -126,7 +126,7 @@ def recognizeInImage(file_name, frame):
         face_distances = face_recognition.face_distance(
             known_face_descriptors, face_encoding)
         min_distance = min(face_distances)
-        if min_distance < 0.5:
+        if min_distance < 0.3:
             index = face_distances.tolist().index(min_distance)
             label = known_face_labels[index]
             print(label)
