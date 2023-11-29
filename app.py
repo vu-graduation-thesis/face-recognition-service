@@ -6,6 +6,7 @@ import aws
 import cv2
 import face_recognition
 import numpy
+import time
 
 from flask_cors import CORS, cross_origin
 app = Flask(__name__)
@@ -127,12 +128,19 @@ def recognizeInImage(file_name, frame):
             known_face_descriptors, face_encoding)
         min_distance = min(face_distances)
         if min_distance < 0.3:
+            face_region = frame[top:bottom, left:right]
+            specificImage = str(int(time.time())) + file_name
+            cv2.imwrite(os.path.join(config["output_folder"], specificImage),
+                        face_region)
+
+
             index = face_distances.tolist().index(min_distance)
             label = known_face_labels[index]
             print(label)
             result.append({
                 "label": label,
-                "confidence": 1 - min_distance
+                "confidence": 1 - min_distance,
+                "imageDetector": specificImage
             })
             cv2.rectangle(frame, (left, top),
                           (right, bottom), (124, 252, 0), 2)
