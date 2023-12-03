@@ -127,7 +127,7 @@ def recognizeInImage(file_name, frame):
         face_distances = face_recognition.face_distance(
             known_face_descriptors, face_encoding)
         min_distance = min(face_distances)
-        if min_distance < 0.3:
+        if min_distance < 0.35:
             face_region = frame[top:bottom, left:right]
             specificImage = str(int(time.time())) + file_name
             cv2.imwrite(os.path.join(config["output_folder"], specificImage),
