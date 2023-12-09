@@ -64,6 +64,9 @@ def statistic():
     tableData = []
     tableHeader = ["Threshold", "Correct prediction", "Wrong prediction", "Unknown detect", "Number of predictions"]
     
+    print("\n\nNumber of faces recognized: {number}".format(number = len(knownLabel)))
+    print("Number of unrecognized faces: {number}\n\n".format(number = len(unknownLabel)))
+
     for i in range(20, 80, 5):
         threshold = i/100
 
